@@ -43,9 +43,7 @@ export default function Home() {
         <circle cx="180" cy="460" r="4.5" fill="#02b378" />
       </svg>
 
-      {/* Sticky Full-width Transparent/Frosted Navbar */}
       <Navbar />
-
       <div className="relative z-10 mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
         <Hero />
         <ServicesSection />
@@ -53,8 +51,6 @@ export default function Home() {
         <Partners />
         <TutorsSection />
       </div>
-
-      {/* Comprehensive Kerala-based SEO Footer */}
       <Footer />
     </div>
   );

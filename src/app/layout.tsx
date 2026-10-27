@@ -58,6 +58,8 @@ export const metadata: Metadata = {
   },
 };
 
+import ToastProvider from "@/components/ToastProvider";
+
 export default function RootLayout({
   children,
 }: {
@@ -93,7 +95,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={plusJakartaSans.className}>{children}</body>
+      <body className={plusJakartaSans.className}>
+        {children}
+        <ToastProvider />
+      </body>
     </html>
   );
 }

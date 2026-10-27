@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {ArrowRight,Clock,Users,X,CheckCircle2,Phone,MapPin,
+import {
+  ArrowRight, Clock, Users, X, CheckCircle2, Phone, MapPin,
   User,
   GraduationCap,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { tuitionStandards } from "@/data/tuitionStandards";
 import { TuitionStandard, StandardCategory } from "@/types/tuition";
+import { toast } from "react-toastify";
 
 interface StandardsGridProps {
   onSelectStandard?: (std: TuitionStandard) => void;
@@ -45,6 +48,14 @@ export default function StandardsGrid({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedData, setSubmittedData] = useState<{
+    name: string;
+    place: string;
+    std: string;
+    contactNumber: string;
+  } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   // Input refs for auto-focusing on first error
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +186,10 @@ export default function StandardsGrid({
     });
     setTouched({});
     setErrors({});
+    setSubmitError(null);
+    setHoneypot("");
     setIsSubmitted(false);
+    setSubmittedData(null);
     setIsModalOpen(true);
     if (onSelectStandard) onSelectStandard(std);
   }
@@ -183,12 +197,17 @@ export default function StandardsGrid({
   function handleCloseModal() {
     setIsModalOpen(false);
     setIsSubmitted(false);
+    setSubmittedData(null);
+    setSubmitError(null);
     setTouched({});
     setErrors({});
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Prevent duplicate submissions
+    if (isSubmitting) return;
 
     // Mark all as touched
     const allTouched = {
@@ -206,6 +225,7 @@ export default function StandardsGrid({
     const hasErrors = Object.values(validationErrors).some((err) => Boolean(err));
 
     if (hasErrors) {
+      toast.error("Please fill in all required fields accurately.");
       // Focus first erroneous field
       if (validationErrors.name && nameInputRef.current) {
         nameInputRef.current.focus();
@@ -220,11 +240,54 @@ export default function StandardsGrid({
     }
 
     setIsSubmitting(true);
-    // Simulate submission
-    setTimeout(() => {
+    setSubmitError(null);
+
+    try {
+      const response = await fetch("/api/enquiry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          enquiryType: "Course Enquiry",
+          name: formData.name,
+          place: formData.place,
+          std: formData.std,
+          contactNumber: formData.contactNumber,
+          _hp: honeypot,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSubmittedData({ ...formData });
+        setFormData({
+          name: "",
+          place: "",
+          std: "",
+          contactNumber: "",
+        });
+        setTouched({});
+        setErrors({});
+        setSubmitError(null);
+        setIsSubmitted(true);
+        toast.success("Enrollment request submitted successfully!");
+      } else {
+        const errorMsg =
+          result.error ||
+          "Unable to submit enrollment request. Please check your network or try again.";
+        setSubmitError(errorMsg);
+        toast.error(errorMsg);
+      }
+    } catch {
+      const networkError =
+        "Network connection error. Please verify your internet connection and try again.";
+      setSubmitError(networkError);
+      toast.error(networkError);
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-    }, 400);
+    }
   }
 
   return (
@@ -245,11 +308,10 @@ export default function StandardsGrid({
               key={cat}
               type="button"
               onClick={() => setActiveCategory(cat)}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                activeCategory === cat
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeCategory === cat
                   ? "bg-[#02b378] text-white shadow-sm shadow-[#02b378]/30"
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+                }`}
             >
               {cat}
             </button>
@@ -343,18 +405,18 @@ export default function StandardsGrid({
               <X size={20} />
             </button>
 
-            {isSubmitted ? (
+            {isSubmitted && submittedData ? (
               <div className="text-center py-6">
-                
+
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Enrollment Inquiry Received!
                 </h3>
                 <p className="text-gray-600 text-sm mb-6 max-w-md mx-auto leading-relaxed">
-                  Thank you, <span className="font-semibold text-gray-900">{formData.name}</span>.
+                  Thank you, <span className="font-semibold text-gray-900">{submittedData.name}</span>.
                   We have received your admission inquiry for{" "}
-                  <span className="font-semibold text-[#02b378]">{formData.std}</span> (Location: {formData.place}).
+                  <span className="font-semibold text-[#02b378]">{submittedData.std}</span> (Location: {submittedData.place}).
                   Our academic counselor will contact you at{" "}
-                  <span className="font-semibold text-gray-900">{formData.contactNumber}</span> shortly to finalize your batch schedule.
+                  <span className="font-semibold text-gray-900">{submittedData.contactNumber}</span> shortly to finalize your batch schedule.
                 </p>
                 <button
                   type="button"
@@ -379,6 +441,28 @@ export default function StandardsGrid({
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                  {/* Submission Error Banner */}
+                  {submitError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-start gap-2 animate-in fade-in duration-150">
+                      <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="font-semibold block mb-0.5">Submission Failed</span>
+                        <span>{submitError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Honeypot field for bot protection */}
+                  <input
+                    type="text"
+                    name="_hp"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                    style={{ display: "none" }}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                  />
                   {/* Name Field */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -387,13 +471,12 @@ export default function StandardsGrid({
                     <div className="relative flex items-center">
                       <User
                         size={16}
-                        className={`absolute left-3.5 transition-colors ${
-                          touched.name && errors.name
+                        className={`absolute left-3.5 transition-colors ${touched.name && errors.name
                             ? "text-red-400"
                             : touched.name && !errors.name
-                            ? "text-[#02b378]"
-                            : "text-gray-400"
-                        }`}
+                              ? "text-[#02b378]"
+                              : "text-gray-400"
+                          }`}
                       />
                       <input
                         ref={nameInputRef}
@@ -402,13 +485,12 @@ export default function StandardsGrid({
                         value={formData.name}
                         onChange={(e) => handleChange("name", e.target.value)}
                         onBlur={() => handleBlur("name")}
-                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${
-                          touched.name && errors.name
+                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${touched.name && errors.name
                             ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                             : touched.name && !errors.name
-                            ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                            : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                        }`}
+                              ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                              : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                          }`}
                       />
                     </div>
                     {touched.name && errors.name && (
@@ -427,13 +509,12 @@ export default function StandardsGrid({
                     <div className="relative flex items-center">
                       <MapPin
                         size={16}
-                        className={`absolute left-3.5 transition-colors ${
-                          touched.place && errors.place
+                        className={`absolute left-3.5 transition-colors ${touched.place && errors.place
                             ? "text-red-400"
                             : touched.place && !errors.place
-                            ? "text-[#02b378]"
-                            : "text-gray-400"
-                        }`}
+                              ? "text-[#02b378]"
+                              : "text-gray-400"
+                          }`}
                       />
                       <input
                         ref={placeInputRef}
@@ -442,13 +523,12 @@ export default function StandardsGrid({
                         value={formData.place}
                         onChange={(e) => handleChange("place", e.target.value)}
                         onBlur={() => handleBlur("place")}
-                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${
-                          touched.place && errors.place
+                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${touched.place && errors.place
                             ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                             : touched.place && !errors.place
-                            ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                            : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                        }`}
+                              ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                              : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                          }`}
                       />
                     </div>
                     {touched.place && errors.place && (
@@ -467,26 +547,24 @@ export default function StandardsGrid({
                     <div className="relative flex items-center">
                       <GraduationCap
                         size={16}
-                        className={`absolute left-3.5 transition-colors ${
-                          touched.std && errors.std
+                        className={`absolute left-3.5 transition-colors ${touched.std && errors.std
                             ? "text-red-400"
                             : touched.std && !errors.std
-                            ? "text-[#02b378]"
-                            : "text-gray-400"
-                        }`}
+                              ? "text-[#02b378]"
+                              : "text-gray-400"
+                          }`}
                       />
                       <select
                         ref={stdSelectRef}
                         value={formData.std}
                         onChange={(e) => handleChange("std", e.target.value)}
                         onBlur={() => handleBlur("std")}
-                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 outline-hidden transition-all ${
-                          touched.std && errors.std
+                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 outline-hidden transition-all ${touched.std && errors.std
                             ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                             : touched.std && !errors.std
-                            ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                            : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                        }`}
+                              ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                              : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                          }`}
                       >
                         <option value="" disabled>
                           Select Standard
@@ -514,13 +592,12 @@ export default function StandardsGrid({
                     <div className="relative flex items-center">
                       <Phone
                         size={16}
-                        className={`absolute left-3.5 transition-colors ${
-                          touched.contactNumber && errors.contactNumber
+                        className={`absolute left-3.5 transition-colors ${touched.contactNumber && errors.contactNumber
                             ? "text-red-400"
                             : touched.contactNumber && !errors.contactNumber
-                            ? "text-[#02b378]"
-                            : "text-gray-400"
-                        }`}
+                              ? "text-[#02b378]"
+                              : "text-gray-400"
+                          }`}
                       />
                       <input
                         ref={phoneInputRef}
@@ -534,13 +611,12 @@ export default function StandardsGrid({
                           handleChange("contactNumber", val);
                         }}
                         onBlur={() => handleBlur("contactNumber")}
-                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${
-                          touched.contactNumber && errors.contactNumber
+                        className={`w-full bg-white border rounded-lg py-2.5 pl-10 pr-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${touched.contactNumber && errors.contactNumber
                             ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                             : touched.contactNumber && !errors.contactNumber
-                            ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                            : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                        }`}
+                              ? "border-[#02b378]/60 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                              : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
+                          }`}
                       />
                     </div>
                     {touched.contactNumber && errors.contactNumber && (
@@ -556,10 +632,13 @@ export default function StandardsGrid({
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-[#02b378] hover:bg-[#019966] disabled:opacity-70 text-white font-semibold text-sm py-3 rounded-lg shadow-md shadow-[#02b378]/25 transition-all duration-200 hover:shadow-lg hover:shadow-[#02b378]/35 cursor-pointer flex items-center justify-center gap-2"
+                      className="w-full bg-[#02b378] hover:bg-[#019966] disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold text-sm py-3 rounded-lg shadow-md shadow-[#02b378]/25 transition-all duration-200 hover:shadow-lg hover:shadow-[#02b378]/35 cursor-pointer flex items-center justify-center gap-2"
                     >
                       {isSubmitting ? (
-                        <span>Validating & Submitting...</span>
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>Submitting Enrollment Request...</span>
+                        </>
                       ) : (
                         <span>Submit Enrollment Request</span>
                       )}
