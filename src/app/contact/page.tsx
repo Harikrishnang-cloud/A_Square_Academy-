@@ -4,7 +4,8 @@ import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Partners from "@/components/Partners";
-import { Phone,Mail,MapPin,Clock,Send,CheckCircle2,AlertCircle,MessageSquare,
+import {
+  Phone, Mail, MapPin, Clock, Send, CheckCircle2, AlertCircle, MessageSquare,
   Loader2,
 } from "lucide-react";
 import { tuitionStandards } from "@/data/tuitionStandards";
@@ -340,11 +341,10 @@ export default function ContactPage() {
                       value={formData.name}
                       onChange={(e) => handleChange("name", e.target.value)}
                       onBlur={() => handleBlur("name")}
-                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${
-                        touched.name && errors.name
+                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${touched.name && errors.name
                           ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                           : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                      }`}
+                        }`}
                     />
                     {touched.name && errors.name && (
                       <div className="flex items-center gap-1 text-[11.5px] text-red-500 mt-1">
@@ -370,11 +370,10 @@ export default function ContactPage() {
                           handleChange("phone", val);
                         }}
                         onBlur={() => handleBlur("phone")}
-                        className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${
-                          touched.phone && errors.phone
+                        className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all ${touched.phone && errors.phone
                             ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                             : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                        }`}
+                          }`}
                       />
                       {touched.phone && errors.phone && (
                         <div className="flex items-center gap-1 text-[11.5px] text-red-500 mt-1">
@@ -407,11 +406,10 @@ export default function ContactPage() {
                       value={formData.std}
                       onChange={(e) => handleChange("std", e.target.value)}
                       onBlur={() => handleBlur("std")}
-                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 outline-hidden transition-all ${
-                        touched.std && errors.std
+                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 outline-hidden transition-all ${touched.std && errors.std
                           ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                           : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>
                         Select Your Standard
@@ -441,11 +439,10 @@ export default function ContactPage() {
                       value={formData.message}
                       onChange={(e) => handleChange("message", e.target.value)}
                       onBlur={() => handleBlur("message")}
-                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all resize-none ${
-                        touched.message && errors.message
+                      className={`w-full bg-white border rounded-lg py-2.5 px-3.5 text-sm text-gray-800 placeholder:text-gray-400 outline-hidden transition-all resize-none ${touched.message && errors.message
                           ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-2 focus:ring-red-200"
                           : "border-gray-200 focus:border-[#02b378] focus:ring-2 focus:ring-[#02b378]/20"
-                      }`}
+                        }`}
                     />
                     {touched.message && errors.message && (
                       <div className="flex items-center gap-1 text-[11.5px] text-red-500 mt-1">

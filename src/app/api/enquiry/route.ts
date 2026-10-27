@@ -102,13 +102,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const digitsOnly = contactNumber.replace(/\D/g, "");
-    if (!digitsOnly || digitsOnly.length < 10) {
+    const rawDigits = contactNumber.replace(/\D/g, "");
+    if (!rawDigits || rawDigits.length < 10) {
       return NextResponse.json(
         { success: false, error: "Please enter a valid 10-digit mobile number." },
         { status: 400 }
       );
     }
+
+    // Strip leading Indian country code (91) or 0 if present to ensure standard 10-digit format
+    const cleanPhone =
+      rawDigits.length === 12 && rawDigits.startsWith("91")
+        ? rawDigits.slice(2)
+        : rawDigits.length === 11 && rawDigits.startsWith("0")
+        ? rawDigits.slice(1)
+        : rawDigits.slice(-10);
 
     if (!std) {
       return NextResponse.json(
@@ -224,11 +232,11 @@ export async function POST(req: NextRequest) {
       "standard": std,
 
       // Header variations for Contact Number
-      "Contact Number": contactNumber,
-      "Phone Number": contactNumber,
-      "Mobile Number": contactNumber,
-      "contactNumber": contactNumber,
-      "phone": contactNumber,
+      "Contact Number": cleanPhone,
+      "Phone Number": cleanPhone,
+      "Mobile Number": cleanPhone,
+      "contactNumber": cleanPhone,
+      "phone": cleanPhone,
 
       // Header variations for Email Address
       "Email Address": emailVal,
@@ -241,7 +249,7 @@ export async function POST(req: NextRequest) {
     };
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout for Google cold starts
 
     let googleResponse: Response;
     try {
@@ -254,6 +262,20 @@ export async function POST(req: NextRequest) {
         redirect: "follow",
         signal: controller.signal,
       });
+
+      // If Google returned a transient 502/503 during deployment, attempt one quick retry after 1s
+      if ((googleResponse.status === 502 || googleResponse.status === 503) && !controller.signal.aborted) {
+        await new Promise((res) => setTimeout(res, 1200));
+        googleResponse = await fetch(googleScriptUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          redirect: "follow",
+          signal: controller.signal,
+        });
+      }
     } catch (fetchErr: unknown) {
       clearTimeout(timeout);
       const isAbort = (fetchErr as Error)?.name === "AbortError";
@@ -272,7 +294,7 @@ export async function POST(req: NextRequest) {
 
     // 10. Process Google Apps Script Response
     const responseText = await googleResponse.text();
-    let result: { status?: string; success?: boolean; message?: string } = {};
+    let result: { status?: string; success?: boolean; message?: string; error?: string } = {};
 
     try {
       result = JSON.parse(responseText);
@@ -299,7 +321,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: result.message || "Failed to record enquiry in Google Sheets.",
+          error:
+            result.error ||
+            result.message ||
+            "Failed to record enquiry in Google Sheets.",
         },
         { status: 400 }
       );
@@ -333,7 +358,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   const configured = Boolean(
     process.env.GOOGLE_SCRIPT_URL &&
-      !process.env.GOOGLE_SCRIPT_URL.includes("YOUR_DEPLOYMENT_ID")
+    !process.env.GOOGLE_SCRIPT_URL.includes("YOUR_DEPLOYMENT_ID")
   );
 
   return NextResponse.json({
